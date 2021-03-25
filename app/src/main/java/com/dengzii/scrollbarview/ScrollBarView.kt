@@ -1,5 +1,6 @@
 package com.dengzii.scrollbarview
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources
 import android.graphics.Canvas
@@ -8,18 +9,17 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ScrollView
-import androidx.core.view.children
+import androidx.annotation.ColorRes
 
 class ScrollBarView : View {
 
     private var mWidth = 20f.dp2px()
+    private val mHeight = 800f.dp2px()
 
     private val mPaint = Paint()
-    private val mHeight = 800f.dp2px()
     private var mY = 0f
     private var mLastY = 0f
 
-    private var mBarColor = android.R.color.black
     private var mBarHeight = 100f.dp2px()
 
     private var mContentHeight = 0
@@ -28,7 +28,8 @@ class ScrollBarView : View {
     private var mBarTouched = false
 
     init {
-        mPaint.color = resources.getColor(mBarColor, null)
+        mPaint.isAntiAlias = true
+        mPaint.color = resources.getColor(android.R.color.black, null)
     }
 
     constructor(context: Context?) : super(context)
@@ -39,6 +40,7 @@ class ScrollBarView : View {
         defStyleAttr
     )
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         event ?: return false
 
@@ -58,7 +60,6 @@ class ScrollBarView : View {
                     mY = height - mBarHeight
                 }
                 val yPercent = mY / (height - mBarHeight)
-                println("==>$yPercent")
 
                 if (mScrollView != null) {
                     mScrollView!!.scrollTo(
@@ -77,17 +78,36 @@ class ScrollBarView : View {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        canvas.drawRoundRect(0f, mY, mWidth, mY + mBarHeight, mWidth, mWidth, mPaint)
+        canvas.drawRoundRect(
+            0f, mY, width.toFloat(), mY + mBarHeight,
+            width.toFloat(), width.toFloat(), mPaint
+        )
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         val modeH = MeasureSpec.getMode(heightMeasureSpec)
         var sizeH = MeasureSpec.getSize(heightMeasureSpec)
+        val modeW = MeasureSpec.getMode(widthMeasureSpec)
+        var sizeW = MeasureSpec.getSize(widthMeasureSpec)
+
         if (modeH == MeasureSpec.AT_MOST) {
             sizeH = mHeight.toInt()
         }
-        setMeasuredDimension(mWidth.toInt(), sizeH)
+        if (modeW == MeasureSpec.AT_MOST) {
+            sizeW = mWidth.toInt()
+        }
+        setMeasuredDimension(sizeW, sizeH)
+    }
+
+    fun setBarHeight(dp: Float) {
+        mBarHeight = dp.dp2px()
+        invalidate()
+    }
+
+    fun setBarColor(@ColorRes color: Int) {
+        mPaint.color = resources.getColor(color, null)
+        invalidate()
     }
 
     fun setWithScrollView(scrollView: ScrollView) {
@@ -95,8 +115,10 @@ class ScrollBarView : View {
         mContentHeight = 0
         mScrollView = scrollView
         scrollView.post {
-            scrollView.children.forEach {
-                mContentHeight += it.measuredHeight
+
+            for (i in 0 until scrollView.childCount) {
+                val child = scrollView.getChildAt(i)
+                mContentHeight += child.measuredHeight
             }
             scrollView.setOnScrollChangeListener { _, _, sy: Int, _, _ ->
                 if (mBarTouched) {
